@@ -37,4 +37,4 @@ This is the official repository for the PM100 HPC job workload dataset, containi
 |threads_per_core|Threads per core required by job|int|
 |time_limit|Maximum run time in minutes or INFINITE|int|
 |user_id|User ID for a job or job step (anonymized)|int|
-|p_con|Power consumption of the job|Array[float]|
+|power_consumption|Power consumption of the job|Array[float]|
