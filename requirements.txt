@@ -1,0 +1,4 @@
+numpy==1.23.5
+pandas==1.5.3
+parallel_pandas==0.5.0
+pyarrow==11.0.0
