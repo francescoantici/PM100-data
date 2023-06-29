@@ -136,7 +136,7 @@ if __name__ == "__main__":
     # Define the number of threads to use for the computation
     n_threads = 1 
     
-    # Initialize parallel-pandas
+    # Initialize parallel-pandas, comment if not needed
     ParallelPandas.initialize(n_cpu=os.cpu_count(), split_factor=n_threads, disable_pr_bar=True)
     
     # The path to the job table file
