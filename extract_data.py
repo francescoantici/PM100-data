@@ -40,7 +40,8 @@ def round_to_closest_second(timestamp: datetime, sampling_time: int = 20, mode: 
                 return timestamp - timedelta(seconds = s - values[0])
         
 def create_node_hashmap(node: str, jobs: pd.DataFrame, job_start_field: str = "start_time", job_end_field: str = "end_time", job_id_field: str = "job_id", job_nodes_field: str = "nodes", sampling_time: int = 20) -> dict:
-    """_summary_
+    """
+    Creates the occupancy hashmap for a given node.
 
     Args:
         node (str): The node name.
@@ -72,7 +73,8 @@ def create_node_hashmap(node: str, jobs: pd.DataFrame, job_start_field: str = "s
     return hashmap
                                 
 def get_non_exclusive_ids(nodes_global_hashmaps: list) -> Iterable:
-    """_summary_
+    """
+    Returns the list of ids of non exclusive jobs.
 
     Args:
         nodes_global_hashmap (dict): The hashmaps of all the nodes to check.
@@ -87,13 +89,18 @@ def get_non_exclusive_ids(nodes_global_hashmaps: list) -> Iterable:
                 non_exclusive_set.update(list(ts))
     return non_exclusive_set
 
-def extract_job_power(job_data: Iterable, ps0_table: pd.DataFrame, ps1_table: pd.DataFrame, save_path:str = None) -> np.array:
-    """_summary_
+def extract_job_power(job_data: Iterable, ps0_table: pd.DataFrame, ps1_table: pd.DataFrame, job_start_field: str = "start_time", job_end_field: str = "end_time", job_id_field: str = "job_id", job_nodes_field: str = "nodes", save_path:str = None) -> np.array:
+    """
+    Extract the job power consumption from the power table and job data.
 
     Args:
         job_data (Iterable): The job data.
         ps0_table (pd.DataFrame): The ps0 table.
         ps1_table (pd.DataFrame): The ps1 table.
+        job_start_field (str, optional): The field name for the start time of the job in the job table. Defaults to "start_time".
+        job_end_field (str, optional): The field name for the end time of the job in the job table. Defaults to "end_time".
+        job_id_field (str, optional): The field name for the id of the job in the job table. Defaults to "job_id".
+        job_nodes_field (str, optional): The field name for the nodes allocated to the job in the job table. Defaults to "nodes".
         save_path (str, optional): The path to save power consumption of jobs, if None no file is saved. Defaults to None.
 
     Raises:
@@ -103,21 +110,18 @@ def extract_job_power(job_data: Iterable, ps0_table: pd.DataFrame, ps1_table: pd
         np.array: The power consumption of the input job, empty array if there are errors in the computation.
     """
     try:
-        ts = job_data["start_time"]
-        te = job_data["end_time"]
-        nodes = list(json.loads(
-            job_data["cpus_alloc_layout"].replace("'", '"')).keys())
+        nodes = job_data[job_nodes_field]
         ps0_nodes = ps0_table.loc[ps0_table["node"].isin(nodes)]
         ps1_nodes = ps1_table.loc[ps1_table["node"].isin(nodes)]
-        ps0_power = ps0_nodes.loc[(ps0_nodes["timestamp"] >= ts) & (
-            ps0_nodes["timestamp"] <= te)].groupby(["timestamp"]).sum()["value"].values
-        ps1_power = ps1_nodes.loc[(ps1_nodes["timestamp"] >= ts) & (
-            ps1_nodes["timestamp"] <= te)].groupby(["timestamp"]).sum()["value"].values
+        ps0_power = ps0_nodes.loc[(ps0_nodes["timestamp"] >= job_data[job_start_field]) & (
+            ps0_nodes["timestamp"] <= job_data[job_end_field])].groupby(["timestamp"]).sum()["value"].values
+        ps1_power = ps1_nodes.loc[(ps1_nodes["timestamp"] >= job_data[job_start_field]) & (
+            ps1_nodes["timestamp"] <= job_data[job_end_field])].groupby(["timestamp"]).sum()["value"].values
         power = ps0_power + ps1_power
         if len(power) == 0:
             raise Exception("No power data found.")
         if save_path:
-            with open(os.path.join(save_path, f"{str(job_data['job_id'])}.pkl"),'wb') as f:
+            with open(os.path.join(save_path, f"{str(job_data[job_id_field])}.pkl"),'wb') as f:
                 pickle.dump(power, f)
         return power
     except Exception as e:
@@ -169,6 +173,3 @@ if __name__ == "__main__":
     
     # Save the final job table to the specified file path
     job_table_exclusive.to_parquet(final_table_path)
-    
-    
-    
