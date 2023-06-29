@@ -8,7 +8,7 @@ import pandas as pd
 from datetime import datetime, timedelta
 import pickle
 
-def round_to_closest_second(timestamp: datetime, sampling_time:int = 20, mode: Literal["ceil", "floor"] = "ceil") -> datetime:
+def round_to_closest_second(timestamp: datetime, sampling_time: int = 20, mode: Literal["ceil", "floor"] = "ceil") -> datetime:
     """
     Util function to parse any timestamp to the closest fixed time frame.
 
@@ -39,22 +39,20 @@ def round_to_closest_second(timestamp: datetime, sampling_time:int = 20, mode: L
             else: 
                 return timestamp - timedelta(seconds = s - values[0])
         
-def create_node_hashmap(node:str, jobs:Iterable, job_start_field: str = "start_time", job_end_field: str = "end_time", job_id_field: str = "job_id", job_nodes_field: str = "nodes", sampling_time: int = 20,):
+def create_node_hashmap(node: str, jobs: pd.DataFrame, job_start_field: str = "start_time", job_end_field: str = "end_time", job_id_field: str = "job_id", job_nodes_field: str = "nodes", sampling_time: int = 20) -> dict:
     """_summary_
 
     Args:
-        nodes_names (Iterable): _description_
-        jobs (Iterable): _description_
-        results_path (str, optional): _description_. Defaults to None.
-        job_start_field (str, optional): _description_. Defaults to "start_time".
-        job_end_field (str, optional): _description_. Defaults to "end_time".
-        job_id_field (str, optional): _description_. Defaults to "job_id".
-        job_nodes_field (str, optional): _description_. Defaults to "nodes".
-        sampling_time (int, optional): _description_. Defaults to 20.
-        multiprocessing (bool, optional): _description_. Defaults to False.
+        node (str): The node name.
+        jobs (pd.DataFrame): The job table.
+        job_start_field (str, optional): The field name for the start time of the job in the job table. Defaults to "start_time".
+        job_end_field (str, optional): The field name for the end time of the job in the job table. Defaults to "end_time".
+        job_id_field (str, optional): The field name for the id of the job in the job table. Defaults to "job_id".
+        job_nodes_field (str, optional): The field name for the nodes allocated to the job in the job table. Defaults to "nodes".
+        sampling_time (int, optional): The sampling time to use to verify concurrency of jobs. Defaults to 20.
 
     Returns:
-        dict: _description_
+        dict: The node hashmap with the job ids running in all the timestamps.
     
     """
     hashmap = {}
@@ -71,16 +69,16 @@ def create_node_hashmap(node:str, jobs:Iterable, job_start_field: str = "start_t
     
     jobs.apply(lambda j: _populate_hashmap(j, hashmap), axis = 1)
     
-    return node, hashmap
+    return hashmap
                                 
 def get_non_exclusive_ids(nodes_global_hashmaps: list) -> Iterable:
     """_summary_
 
     Args:
-        nodes_global_hashmap (dict): _description_
+        nodes_global_hashmap (dict): The hashmaps of all the nodes to check.
 
     Returns:
-        Iterable: _description_
+        Iterable: List of the ids of the job which are concurrent.
     """
     non_exclusive_set = set()
     for node_hashmap in nodes_global_hashmaps:
@@ -89,7 +87,21 @@ def get_non_exclusive_ids(nodes_global_hashmaps: list) -> Iterable:
                 non_exclusive_set.update(list(ts))
     return non_exclusive_set
 
-def extract_job_power(job_data: Iterable, ps0_table, ps1_table, save_path = None):
+def extract_job_power(job_data: Iterable, ps0_table: pd.DataFrame, ps1_table: pd.DataFrame, save_path:str = None) -> np.array:
+    """_summary_
+
+    Args:
+        job_data (Iterable): The job data.
+        ps0_table (pd.DataFrame): The ps0 table.
+        ps1_table (pd.DataFrame): The ps1 table.
+        save_path (str, optional): The path to save power consumption of jobs, if None no file is saved. Defaults to None.
+
+    Raises:
+        Exception: If there is any problem in extracting the power values.
+
+    Returns:
+        np.array: The power consumption of the input job, empty array if there are errors in the computation.
+    """
     try:
         ts = job_data["start_time"]
         te = job_data["end_time"]
@@ -115,32 +127,47 @@ def extract_job_power(job_data: Iterable, ps0_table, ps1_table, save_path = None
 
 if __name__ == "__main__":
     
+    # Example of an extraction pipeline
+    
+    # Define the number of threads to use for the computation
     n_threads = 1 
     
-    #initialize parallel-pandas
+    # Initialize parallel-pandas
     ParallelPandas.initialize(n_cpu=os.cpu_count(), split_factor=n_threads, disable_pr_bar=True)
-        
+    
+    # The path to the job table file
     job_table_path = ""
+    
+    # The path to the file with the list of the nodes 
     nodes_list_path = ""
+    
+    # The path to the files containing the ps0 and ps1 power tables
     ps0_table_path = ""
     ps1_table_path = ""
     
+    # The final path to the output job table
     final_table_path = ""
-        
+    
+    # Loading of the files
     job_table = pd.read_parquet(job_table_path)
     node_list = [node.split("\n")[0] for node in open(nodes_list_path).readlines()]
     ps0_table = pd.read_parquet(ps0_table_path)
     ps1_table = pd.read_parquet(ps1_table_path)
     
+    # Create the nodes hashmaps, if n_threads > 1 multiprocessing, serial otherwise
     with Pool(n_threads) as p:
         nodes_hashmaps = p.map_async(create_node_hashmap, node_list, kwargs = {"jobs":job_table}).get()
-        
+    
+    # Compute the ids of job which are not running exclusively on the nodes
     ids_to_exclude = get_non_exclusive_ids(nodes_global_hashmaps = nodes_hashmaps)
     
+    # Filter the exclusive jobs
     job_table_exclusive = job_table[~job_table.job_id.isin(ids_to_exclude)]
     
-    job_table_exclusive["p_con"] = job_table.p_apply(lambda j: extract_job_power(j, ps0_table = ps0_table, ps1_table = ps1_table), axis = 1)
+    # Extract each job power consumption 
+    job_table_exclusive["power_consumption"] = job_table.p_apply(lambda j: extract_job_power(j, ps0_table = ps0_table, ps1_table = ps1_table), axis = 1)
     
+    # Save the final job table to the specified file path
     job_table_exclusive.to_parquet(final_table_path)
     
     
