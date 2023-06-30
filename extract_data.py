@@ -2,7 +2,6 @@ import os
 from multiprocessing import Pool
 from typing import Iterable, Literal
 from parallel_pandas import ParallelPandas
-import json
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
@@ -56,19 +55,16 @@ def create_node_hashmap(node: str, jobs: pd.DataFrame, job_start_field: str = "s
         dict: The node hashmap with the job ids running in all the timestamps.
     
     """
+    node_jobs = jobs.loc[jobs[job_nodes_field].apply(lambda ns: node in ns)]
+        
     hashmap = {}
     
+    for job in node_jobs[[job_id_field, job_start_field, job_end_field]].values:
     
-    def _populate_hashmap(job, hashmap):
-        if node not in job[job_nodes_field]:
-            return
-        for t in pd.date_range(round_to_closest_second(job[job_start_field], sampling_time = sampling_time, mode = "ceil"), round_to_closest_second(job[job_end_field], sampling_time = sampling_time, mode = "floor"), freq = f"{sampling_time}s").to_pydatetime():
-            
+        for t in pd.date_range(round_to_closest_second(job[1], sampling_time = sampling_time, mode = "ceil"), round_to_closest_second(job[-1], sampling_time = sampling_time, mode = "floor"), freq = f"{sampling_time}s").to_pydatetime():
+                
             # Populates the hasmap with the id of the job 
-            hashmap[str(t)] = hashmap.get(str(t), []) + [job[job_id_field]]
-        
-    
-    jobs.apply(lambda j: _populate_hashmap(j, hashmap), axis = 1)
+            hashmap[str(t)] = hashmap.get(str(t), []) + [job[0]]
     
     return hashmap
                                 
@@ -83,20 +79,19 @@ def get_non_exclusive_ids(nodes_global_hashmaps: list) -> Iterable:
         Iterable: List of the ids of the job which are concurrent.
     """
     non_exclusive_set = set()
-    for node_hashmap in nodes_global_hashmaps:
+    for node_hashmap in nodes_global_hashmaps.values():
         for ts in node_hashmap.values():
             if len(ts) > 1:
                 non_exclusive_set.update(list(ts))
     return non_exclusive_set
 
-def extract_job_power(job_data: Iterable, ps0_table: pd.DataFrame, ps1_table: pd.DataFrame, job_start_field: str = "start_time", job_end_field: str = "end_time", job_id_field: str = "job_id", job_nodes_field: str = "nodes", save_path:str = None) -> np.array:
+def extract_job_power(job_data: Iterable, p_table: pd.DataFrame, job_start_field: str = "start_time", job_end_field: str = "end_time", job_id_field: str = "job_id", job_nodes_field: str = "nodes", save_path:str = None) -> np.array:
     """
     Extract the job power consumption from the power table and job data.
 
     Args:
         job_data (Iterable): The job data.
-        ps0_table (pd.DataFrame): The ps0 table.
-        ps1_table (pd.DataFrame): The ps1 table.
+        ps0_table (pd.DataFrame): The p table containing the power values.
         job_start_field (str, optional): The field name for the start time of the job in the job table. Defaults to "start_time".
         job_end_field (str, optional): The field name for the end time of the job in the job table. Defaults to "end_time".
         job_id_field (str, optional): The field name for the id of the job in the job table. Defaults to "job_id".
@@ -111,13 +106,11 @@ def extract_job_power(job_data: Iterable, ps0_table: pd.DataFrame, ps1_table: pd
     """
     try:
         nodes = job_data[job_nodes_field]
-        ps0_nodes = ps0_table.loc[ps0_table["node"].isin(nodes)]
-        ps1_nodes = ps1_table.loc[ps1_table["node"].isin(nodes)]
-        ps0_power = ps0_nodes.loc[(ps0_nodes["timestamp"] >= job_data[job_start_field]) & (
-            ps0_nodes["timestamp"] <= job_data[job_end_field])].groupby(["timestamp"]).sum()["value"].values
-        ps1_power = ps1_nodes.loc[(ps1_nodes["timestamp"] >= job_data[job_start_field]) & (
-            ps1_nodes["timestamp"] <= job_data[job_end_field])].groupby(["timestamp"]).sum()["value"].values
-        power = ps0_power + ps1_power
+        p_nodes = p_table.loc[p_table["node"].isin(nodes)]
+        power = p_nodes.loc[(p_nodes["timestamp"] >= job_data[job_start_field]) & (p_nodes["timestamp"] <= job_data[job_end_field])].\
+                groupby(["timestamp"]).\
+                    sum()["value"].\
+                        values
         if len(power) == 0:
             raise Exception("No power data found.")
         if save_path:
@@ -142,34 +135,35 @@ if __name__ == "__main__":
     # The path to the job table file
     job_table_path = ""
     
-    # The path to the file with the list of the nodes 
-    nodes_list_path = ""
-    
-    # The path to the files containing the ps0 and ps1 power tables
-    ps0_table_path = ""
-    ps1_table_path = ""
+    # The path to the files containing the power values
+    p_table_path = ""
     
     # The final path to the output job table
     final_table_path = ""
     
     # Loading of the files
     job_table = pd.read_parquet(job_table_path)
-    node_list = [node.split("\n")[0] for node in open(nodes_list_path).readlines()]
-    ps0_table = pd.read_parquet(ps0_table_path)
-    ps1_table = pd.read_parquet(ps1_table_path)
+    p_table = pd.read_parquet(p_table_path)
     
+    nodes = set()
+    
+    # Create the list of nodes
+    for na in job_table["nodes"].values:
+        
+        nodes.update(na)
+            
     # Create the nodes hashmaps, if n_threads > 1 multiprocessing, serial otherwise
     with Pool(n_threads) as p:
-        nodes_hashmaps = p.map_async(create_node_hashmap, node_list, kwargs = {"jobs":job_table}).get()
+        hashmaps_list = p.starmap_async(create_node_hashmap, [(node, job_table) for node in nodes]).get()
     
     # Compute the ids of job which are not running exclusively on the nodes
-    ids_to_exclude = get_non_exclusive_ids(nodes_global_hashmaps = nodes_hashmaps)
+    ids_to_exclude = get_non_exclusive_ids(nodes_global_hashmaps = hashmaps_list)
     
     # Filter the exclusive jobs
     job_table_exclusive = job_table[~job_table.job_id.isin(ids_to_exclude)]
     
-    # Extract each job power consumption 
-    job_table_exclusive["power_consumption"] = job_table.p_apply(lambda j: extract_job_power(j, ps0_table = ps0_table, ps1_table = ps1_table), axis = 1)
+    # Extract each job power consumption, if not using parallelpandas replace p_apply with apply
+    job_table_exclusive["power_consumption"] = job_table.p_apply(lambda j: extract_job_power(j, p_table = p_table), axis = 1)
     
     # Save the final job table to the specified file path
     job_table_exclusive.to_parquet(final_table_path)
