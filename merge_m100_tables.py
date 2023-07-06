@@ -22,7 +22,6 @@ def merge_job_tables(data_path:str) -> pd.DataFrame:
     
     return job_table
 
-
 if __name__ == "__main__":
     
     # Path to the parquet files containing the job table files
