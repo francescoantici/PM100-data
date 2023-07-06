@@ -27,6 +27,6 @@ The job tables related to the different months can be merged by running the `mer
 
 Before launching the extraction, the variables `job_table_path`, `ps[0, 1]_table_path` and `final_table_path` must be initialized with the path to the downloaded data and the desidered output file for the dataset.
 
-The result of the execution is a `parquet` file containing the data structured as presented in the `documentation` folder.
+The result of the execution is a `parquet` file containing the data structured as presented in the `documentation/job_features.md` file.
 
 
