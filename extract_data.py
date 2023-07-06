@@ -85,13 +85,14 @@ def get_non_exclusive_ids(nodes_global_hashmaps: list) -> Iterable:
                 non_exclusive_set.update(list(ts))
     return non_exclusive_set
 
-def extract_job_power(job_data: Iterable, p_table: pd.DataFrame, job_start_field: str = "start_time", job_end_field: str = "end_time", job_id_field: str = "job_id", job_nodes_field: str = "nodes", save_path:str = None) -> np.array:
+def extract_job_power(job_data: Iterable, ps0: pd.DataFrame, ps1: pd.DataFrame, job_start_field: str = "start_time", job_end_field: str = "end_time", job_id_field: str = "job_id", job_nodes_field: str = "nodes", save_path:str = None) -> np.array:
     """
     Extract the job power consumption from the power table and job data.
 
     Args:
         job_data (Iterable): The job data.
-        ps0_table (pd.DataFrame): The p table containing the power values.
+        ps0 (pd.DataFrame): The ps0 table containing the input power values of s0.
+        ps1 (pd.DataFrame): The ps1 table containing the input power values of s1.
         job_start_field (str, optional): The field name for the start time of the job in the job table. Defaults to "start_time".
         job_end_field (str, optional): The field name for the end time of the job in the job table. Defaults to "end_time".
         job_id_field (str, optional): The field name for the id of the job in the job table. Defaults to "job_id".
@@ -106,11 +107,17 @@ def extract_job_power(job_data: Iterable, p_table: pd.DataFrame, job_start_field
     """
     try:
         nodes = job_data[job_nodes_field]
-        p_nodes = p_table.loc[p_table["node"].isin(nodes)]
-        power = p_nodes.loc[(p_nodes["timestamp"] >= job_data[job_start_field]) & (p_nodes["timestamp"] <= job_data[job_end_field])].\
+        ps0_nodes = ps0.loc[ps0["node"].isin(nodes)]
+        ps1_nodes = ps1.loc[ps1["node"].isin(nodes)]
+        ps0_power = ps0_nodes.loc[(ps0_nodes["timestamp"] >= job_data[job_start_field]) & (ps0_nodes["timestamp"] <= job_data[job_end_field])].\
                 groupby(["timestamp"]).\
                     sum()["value"].\
                         values
+        ps1_power = ps1_nodes.loc[(ps1_nodes["timestamp"] >= job_data[job_start_field]) & (ps1_nodes["timestamp"] <= job_data[job_end_field])].\
+                groupby(["timestamp"]).\
+                    sum()["value"].\
+                        values
+        power = ps0_power + ps1_power
         if len(power) == 0:
             raise Exception("No power data found.")
         if save_path:
@@ -120,7 +127,6 @@ def extract_job_power(job_data: Iterable, p_table: pd.DataFrame, job_start_field
     except Exception as e:
         print(e)
         return np.array([])
-
 
 if __name__ == "__main__":
     
@@ -135,15 +141,17 @@ if __name__ == "__main__":
     # The path to the job table file
     job_table_path = ""
     
-    # The path to the files containing the power values
-    p_table_path = ""
+    # The path to the files containing the input power values
+    ps0_table_path = ""
+    ps1_table_path = ""
     
     # The final path to the output job table
     final_table_path = ""
     
     # Loading of the files
     job_table = pd.read_parquet(job_table_path)
-    p_table = pd.read_parquet(p_table_path)
+    ps0 = pd.read_parquet(ps0_table_path)
+    ps1 = pd.read_parquet(ps1_table_path)
     
     nodes = set()
     
@@ -163,7 +171,7 @@ if __name__ == "__main__":
     job_table_exclusive = job_table[~job_table.job_id.isin(ids_to_exclude)]
     
     # Extract each job power consumption, if not using parallelpandas replace p_apply with apply
-    job_table_exclusive["power_consumption"] = job_table.p_apply(lambda j: extract_job_power(j, p_table = p_table), axis = 1)
+    job_table_exclusive["power_consumption"] = job_table.p_apply(lambda j: extract_job_power(j, ps0 = ps0, ps1 = ps1), axis = 1)
     
     # Save the final job table to the specified file path
     job_table_exclusive.to_parquet(final_table_path)
