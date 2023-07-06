@@ -123,10 +123,12 @@ def extract_job_power(job_data: Iterable, ps0: pd.DataFrame, ps1: pd.DataFrame, 
         if save_path:
             with open(os.path.join(save_path, f"{str(job_data[job_id_field])}.pkl"),'wb') as f:
                 pickle.dump(power, f)
-        return power
+        job_data["power_consumption"] = power
+        return job_data
     except Exception as e:
         print(e)
-        return np.array([])
+        job_data["power_consumption"] = []
+        return job_data
 
 if __name__ == "__main__":
     
@@ -134,9 +136,6 @@ if __name__ == "__main__":
     
     # Define the number of threads to use for the computation
     n_threads = 1 
-    
-    # Initialize parallel-pandas, comment if not needed
-    ParallelPandas.initialize(n_cpu=os.cpu_count(), split_factor=n_threads, disable_pr_bar=True)
     
     # The path to the job table file
     job_table_path = ""
@@ -171,7 +170,10 @@ if __name__ == "__main__":
     job_table_exclusive = job_table[~job_table.job_id.isin(ids_to_exclude)]
     
     # Extract each job power consumption, if not using parallelpandas replace p_apply with apply
-    job_table_exclusive["power_consumption"] = job_table.p_apply(lambda j: extract_job_power(j, ps0 = ps0, ps1 = ps1), axis = 1)
+    with Pool(n_threads) as p:
+        job_list = p.starmap_async(extract_job_power, job_table.apply(lambda j: (j, ps0, ps1))).get()
+        
+    job_table_exclusive = list(filter(lambda j: len(j["power_consumption"]) > 0, job_list))
     
     # Save the final job table to the specified file path
-    job_table_exclusive.to_parquet(final_table_path)
+    pd.DataFrame.from_records(job_table_exclusive).to_parquet(final_table_path)
