@@ -170,7 +170,7 @@ if __name__ == "__main__":
     
     # Extract each job power consumption, if not using parallelpandas replace p_apply with apply
     with Pool(n_threads) as p:
-        job_list = p.starmap_async(extract_job_power, job_table.apply(lambda j: (j, ps0, ps1))).get()
+        job_list = p.starmap_async(extract_job_power, job_table.apply(lambda j: (j, ps0, ps1)).values).get()
         
     job_table_exclusive = list(filter(lambda j: len(j["power_consumption"]) > 0, job_list))
     
