@@ -9,7 +9,7 @@ This is the official repository for the PM100 HPC job workload dataset, containi
 
 ## Preliminaries
 
-All the packages used in the project are reported in the `requirements.txt`, the python version used was the 3.6.8. 
+All the packages used in the project are reported in the `requirements.txt`, the `Python` version used was the `3.6.8`. 
 
 It would be useful (but not compulsory) to create a virtual environment and then install the required packages with `pip3 install -r requirements.txt`. 
 
