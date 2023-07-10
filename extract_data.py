@@ -1,7 +1,6 @@
 import os
 from multiprocessing import Pool
 from typing import Iterable, Literal
-from parallel_pandas import ParallelPandas
 import numpy as np
 import pandas as pd
 from datetime import datetime, timedelta
