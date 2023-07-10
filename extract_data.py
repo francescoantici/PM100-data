@@ -168,10 +168,11 @@ if __name__ == "__main__":
     # Filter the exclusive jobs
     job_table_exclusive = job_table[~job_table.job_id.isin(ids_to_exclude)]
     
-    # Extract each job power consumption, if not using parallelpandas replace p_apply with apply
+    # Extract each job power consumption
     with Pool(n_threads) as p:
         job_list = p.starmap_async(extract_job_power, job_table.apply(lambda j: (j, ps0, ps1)).values).get()
-        
+    
+    # Remove the jobs which have wrong values
     job_table_exclusive = list(filter(lambda j: len(j["power_consumption"]) > 0, job_list))
     
     # Save the final job table to the specified file path
