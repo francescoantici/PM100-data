@@ -22,7 +22,6 @@
 |mem_alloc|Amount of memory (RAM) allocated to the job|int|
 |num_tasks|Number of tasks requested by a job or job step|int|
 |partition|Name of assigned partition (anonymized)|string|
-|power_flags|Power management flags, see SLURM_POWERFLAGS|int|
 |priority|Relative priority of the job, 0=held, 1=required nodes DOWN/DRAINED|int|
 |qos|Quality of Service (anonymized, categorical)|string|
 |req_nodes|Comma-separated list of required nodes|string|
