@@ -2,18 +2,18 @@
 
 |Column|Description|Type|
 |------|-----------|----|
-|cpus_alloc_layout|Map: list of cpu allocated per node|string|
-|cpus_allocated|Map: number of cpu allocated per node|string|
-|cpus_per_task|Number of processors required for each task|int|
+|cores_alloc_layout|Map: list of cores allocated per node|string|
+|cores_allocated|Map: number of cores allocated per node|string|
+|cores_per_task|Number of cores required for each task|int|
 |derived_ec|Highest exit code of all job steps|string|
 |eligible_time|Time job is eligible for running|timestamp|
-|end_time|Time of termination, actual or expected|timestamp|
+|end_time|Time of termination|timestamp|
 |group_id|Group job submitted as|int|
 |job_id|Job ID (anonymized)|int|
 |job_state|State of the job, see enum job_states for possible values|string|
 |nodes|List of nodes allocated to job|string|
-|num_cpus_req|Number of CPUs (processors) requested by the user|int|
-|num_cpus_alloc|Number of CPUs (processors) allocated to the job|int|
+|num_cores_req|Number of cores requested by the user|int|
+|num_cores_alloc|Number of cores allocated to the job|int|
 |num_gpus_req|Number of GPUs requested by the user|int|
 |num_gpus_alloc|Number of GPUs allocated to the job|int|
 |num_nodes_req|Number of nodes requested by the user|int|
@@ -34,4 +34,4 @@
 |threads_per_core|Threads per core required by job|int|
 |time_limit|Maximum run time in minutes or INFINITE|int|
 |user_id|User ID for a job or job step (anonymized)|int|
-|power_consumption|Power consumption of the job|Array[int]|
+|power_consumption|Power consumption of the job|List[int]|
