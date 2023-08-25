@@ -11,7 +11,7 @@ This is the official repository for the PM100 HPC job workload dataset, containi
 
 All the packages used in the project are reported in the `requirements.txt`, the `Python` version used was the `3.6.8`. 
 
-It would be useful (but not compulsory) to create a virtual environment and then install the required packages with `pip3 install -r requirements.txt`. 
+It is a good practice to create a virtual environment and then install the required packages with `pip3 install -r requirements.txt`. 
 
 In order to extract the PM100 dataset from M100, first it is needed to download the correct data from [Zenodo](https://doi.org/10.5281/zenodo.7588814).
 
