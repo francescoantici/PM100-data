@@ -5,7 +5,9 @@ This is the official repository for the PM100 HPC job workload dataset, containi
 ## Repository structure
 
 - `extract_data.py`: The script containing the functions used to extract the final job power consumption from job traces and power logs. It is showed also an example of a pipeline to extract such values from data structured like the one in [M100 dataset](https://doi.org/10.5281/zenodo.7588814).
+- `inspect_data.py`: The script reports the operation performed on the final PM100 data to produce the plots in the `plots` folder. Moreover, it reports a function to load the data and provide examples on how to inspect it.
 - `documentation`: The folder contains some documentation of the final dataset, like the job features description.
+- `plots` : The folder contains the plots presented in the paper.
 
 ## Preliminaries
 
