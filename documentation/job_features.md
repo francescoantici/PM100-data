@@ -33,4 +33,6 @@
 |threads_per_core|Threads per core required by job|int|
 |time_limit|Maximum run time in minutes or INFINITE|int|
 |user_id|User ID for a job or job step (anonymized)|int|
-|power_consumption|Power consumption of the job|List[int]|
+|power_consumption|Power consumption of the job, recorded at Node level|List[int]|
+|cpu_power_consumption|Power consumption of the job, recorded at CPU level|List[int]|
+|mem_power_consumption|Power consumption of the job, recorded at Memory level|List[int]|
