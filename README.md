@@ -1,6 +1,6 @@
 # PM100 Dataset
 
-This is the official repository for the PM100 HPC job workload dataset, containing the scripts for the creation of the final data. The official dataset can be found in [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8129258.svg)](https://doi.org/10.5281/zenodo.8129258).
+This is the official repository for the PM100 HPC job workload dataset, containing the scripts for the creation of the final data. The official dataset can be found in [![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.8129258.svg)](https://doi.org/10.5281/zenodo.8129257).
 
 ## Repository structure
 
